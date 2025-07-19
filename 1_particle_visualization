@@ -1,0 +1,75 @@
+import bpy
+import math
+import csv
+
+# === USER SETTINGS ===
+csv_file_path = "C:/My Files/Events/1 particle project/motion_data.txt"  # ← Change this to your actual file path
+fps = 1000  # frames per second, used if frame is based on time
+
+# === Ensure in Object Mode before deleting
+if bpy.ops.object.mode_set.poll():
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+# === Delete all existing objects
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+# === CLEANUP ===
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete(use_global=False)
+
+# === Add Camera ===
+bpy.ops.object.camera_add()
+camera = bpy.context.object
+camera.name = "SceneCamera"
+
+bpy.ops.object.lamp_add()
+lamp = bpy.context.object
+lamp.name = "SunLamp"
+lamp.location = (0.0, 0.0, 0.0)
+
+# Change lamp type to SUN
+lamp.data.type = 'SUN'
+lamp.rotation_euler = (math.radians(90), math.radians(90), 0.0)
+
+# === Position and Angle ===
+camera.location = (0.195, -0.65, 0.0)
+camera.rotation_euler = (math.radians(90), 0.0, 0.0)
+bpy.context.scene.camera = camera
+
+if "Particle" in bpy.data.objects:
+    bpy.data.objects.remove(bpy.data.objects["Particle"], do_unlink=True)
+    
+# === Create Sphere ===
+bpy.ops.mesh.primitive_uv_sphere_add()
+sphere = bpy.context.object
+sphere.name = "Particle"
+mod = sphere.modifiers.new(name="Subsurf", type='SUBSURF')
+mod.levels = 3
+mod.render_levels = 3
+
+# === Read and Apply Motion Data ===
+with open(csv_file_path, 'r') as txtfile:
+    reader = csv.DictReader(txtfile)
+    for row in reader:
+        # Extract values from CSV
+        time = float(row['time'])
+        radius = float(row['radius'])
+        x = float(row['x'])
+        y = float(row['y'])
+        z = float(row['z'])
+        rx = float(row['rx'])
+        ry = float(row['ry'])
+        rz = float(row['rz'])
+        # Convert time to frame number (rounded to int)
+        frame = int(round(time * fps))
+
+        # Set sphere's transform
+        sphere.location = (x, y, z)
+        sphere.rotation_euler = (rx, -rz, ry)
+        sphere.scale = (radius, radius, radius)  # scale acts like radius
+
+        # Insert keyframes
+        sphere.keyframe_insert(data_path="location", frame=frame)
+        sphere.keyframe_insert(data_path="rotation_euler", frame=frame)
+        sphere.keyframe_insert(data_path="scale", frame=frame)
